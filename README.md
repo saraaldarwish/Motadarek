@@ -1,35 +1,75 @@
----
-title: Motadarek Fall Detection
-alert: 🚨
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-pinned: false
----
+MOTADAREK: Audio-Radar Fall Detection and Severity Assessment System
+Live Demo
 
-# Motadarek — Detect · Assess · Alert · Protect
+🚀 HuggingFace Deployment:
+https://huggingface.co/spaces/SarahSulaiman/Motadarek
 
-Multi-model fall detection and severity assessment system.
+Overview
 
-## Models
-| Model | Type | Input |
-|-------|------|-------|
-| Fall Detector | AST Transformer | Fall audio |
-| Position Model | AST Transformer | Fall audio |
-| Surface Model | AST Transformer | Fall audio |
-| Scream Detector | AST Transformer | Scream audio |
-| Radar Recovery | scikit-learn (joblib) | Radar features |
+MOTADAREK is a multimodal AI-powered fall detection and severity assessment system that combines audio analysis, radar-based recovery detection, and contextual classification models to analyze fall events and assess potential severity.
 
-## Scoring (threshold ≥ 5 = HIGH RISK)
-| Factor | Value |
-|--------|-------|
-| Position: Standing | +2 |
-| Position: Lying | +1 |
-| Surface: Concrete/Carpet-Concrete | +3 |
-| Surface: Wood/Carpet-Wood | +1 |
-| Scream detected | +3 |
-| Radar: not recovered | +3 |
+The system integrates multiple machine learning models into a unified inference pipeline using FastAPI and HuggingFace Spaces deployment.
 
-## Environment Variables (Secrets)
-- `TELEGRAM_BOT_TOKEN` — your Telegram bot token
-- `TELEGRAM_CHAT_ID` — caregiver's Telegram chat ID
+Features
+Fall audio detection
+Human position classification
+Surface type classification
+Scream detection
+Radar recovery analysis
+Rule-based fusion logic
+Interactive 3D visualization interface
+Real-time inference pipeline
+System Pipeline
+User uploads audio and/or radar inputs.
+Fall detector analyzes the primary audio.
+If a fall is detected:
+Position model runs
+Surface classifier runs
+Scream detector runs
+Radar recovery model runs
+Rule-based fusion combines outputs.
+Final assessment and recovery status are generated.
+Technologies Used
+Backend
+FastAPI
+Python
+Uvicorn
+Frontend
+HTML
+CSS
+JavaScript
+Machine Learning
+PyTorch
+HuggingFace Transformers
+AST (Audio Spectrogram Transformer)
+Scikit-learn
+Librosa
+Joblib
+Deployment
+HuggingFace Spaces
+Docker
+Project Structure
+.
+├── static/
+│   └── frontend files
+├── notebooks/
+│   └── model training notebooks
+├── model/
+│   ├── fall detector
+│   ├── position classifier
+│   ├── surface classifier
+│   ├── scream detector
+│   └── radar recovery model
+├── main.py
+├── requirements.txt
+├── Dockerfile
+└── README.md
+Deployment and Repository
+
+GitHub contains the project source code, documentation, and version history.
+HuggingFace Spaces hosts the deployed system, allowing users to run the application and test the models through a live web interface.
+
+Notes
+
+Large model weight files are stored in the deployed HuggingFace environment rather than the GitHub repository to keep the repository lightweight and manageable.
+
