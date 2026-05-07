@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Motadarek — Fall Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --navy:#0a1628;--navy2:#0d1e38;--navy3:#112244;
+  --teal:#00b4b4;--teal2:#00d4d4;--teal3:#00f0e8;
+  --cyan:#4dd9e8;--gold:#f0b429;
+  --red:#ff3a5c;--green:#00e676;--orange:#ff6b35;
+  --text:#e8f4f8;--dim:#4a6a80;--border:#1a3050;
+  --hd:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:hidden}
+body{background:var(--navy);color:var(--text);font-family:var(--mono);font-size:13px}
+
+/* ── Animated background ── */
+#bg-canvas{position:fixed;inset:0;z-index:0;opacity:.35}
+
+/* ── Layout ── */
+.app{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-rows:72px 1fr;gap:0}
+
+/* ── Header ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+  background:rgba(10,22,40,.92);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+}
+.brand{display:flex;align-items:center;gap:14px}
+.logo-ring{
+  width:44px;height:44px;border-radius:50%;
+  border:2px solid var(--teal);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 16px rgba(0,180,180,.4);
+  animation:ring-pulse 3s ease infinite;
+}
+@keyframes ring-pulse{0%,100%{box-shadow:0 0 16px rgba(0,180,180,.4)}50%{box-shadow:0 0 28px rgba(0,180,180,.7),0 0 48px rgba(0,180,180,.3)}}
+.logo-ring svg{width:24px;height:24px}
+.brand-text h1{font-family:var(--hd);font-size:22px;font-weight:800;letter-spacing:4px;color:var(--teal2)}
+.brand-text p{font-size:9px;letter-spacing:5px;color:var(--dim);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:16px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.status-text{font-size:10px;letter-spacing:2px;color:var(--dim)}
+
+/* ── Main grid ── */
+main{display:grid;grid-template-columns:420px 1fr;gap:0;overflow:hidden;height:calc(100vh - 72px)}
+
+/* ── Sidebar ── */
+.sidebar{
+  background:rgba(11,24,44,.95);border-right:1px solid var(--border);
+  padding:24px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;
+}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.section-head{
+  font-size:9px;letter-spacing:3px;color:var(--teal);text-transform:uppercase;
+  margin-bottom:10px;display:flex;align-items:center;gap:8px;
+}
+.section-head::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
+
+/* Input cards */
+.input-card{
+  background:var(--navy3);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;transition:border-color .3s;
+}
+.input-card:focus-within{border-color:var(--teal)}
+.ic-header{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ic-label{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:2px;color:var(--teal)}
+.ic-badge{
+  font-size:9px;padding:2px 8px;border-radius:10px;
+  border:1px solid var(--dim);color:var(--dim);letter-spacing:1px;
+}
+.ic-body{padding:12px}
+
+/* Drop zone */
+.dz{
+  border:1px dashed var(--dim);border-radius:8px;padding:18px 12px;
+  text-align:center;cursor:pointer;transition:all .3s;position:relative;
+}
+.dz:hover,.dz.drag{border-color:var(--teal);background:rgba(0,180,180,.04)}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-icon{font-size:24px;margin-bottom:6px}
+.dz-text{font-size:12px;color:var(--dim)}
+.dz-hint{font-size:9px;color:var(--dim);opacity:.6;margin-top:3px}
+.dz-fn{font-size:10px;color:var(--teal2);margin-top:6px;word-break:break-all;min-height:14px}
+.dz.done{border-color:var(--teal);border-style:solid}
+
+/* Waveform preview */
+.wv-wrap{height:40px;background:rgba(0,0,0,.3);border-radius:6px;overflow:hidden;margin-top:8px;display:none}
+.wv-wrap canvas{width:100%;height:100%}
+
+/* Radar input */
+.radar-section{display:flex;flex-direction:column;gap:8px}
+.radar-toggle{display:flex;gap:6px}
+.rtog{
+  flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);
+  background:var(--navy2);color:var(--dim);font-family:var(--mono);
+  font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .3s;text-align:center;
+}
+.rtog.selected{border-color:var(--teal);background:rgba(0,180,180,.1);color:var(--teal)}
+.radar-features{display:none;gap:6px;flex-direction:column}
+.radar-features.show{display:flex}
+.rf-row{display:flex;align-items:center;gap:8px;font-size:10px}
+.rf-lbl{width:130px;color:var(--dim)}
+.rf-input{
+  flex:1;background:var(--navy2);border:1px solid var(--border);
+  border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:11px;
+}
+
+/* Analyze button */
+.analyze-btn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,rgba(0,180,180,.2),rgba(0,180,180,.05));
+  border:1px solid var(--teal);border-radius:8px;
+  color:var(--teal2);font-family:var(--hd);font-size:13px;font-weight:700;
+  letter-spacing:4px;cursor:pointer;transition:all .3s;text-transform:uppercase;
+  position:relative;overflow:hidden;
+}
+.analyze-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,180,180,.3),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.analyze-btn:hover:not(:disabled)::before{opacity:1}
+.analyze-btn:hover:not(:disabled){box-shadow:0 0 24px rgba(0,180,180,.3)}
+.analyze-btn:disabled{opacity:.35;cursor:not-allowed}
+.analyzing{display:flex;align-items:center;justify-content:center;gap:8px}
+.spin{width:14px;height:14px;border:2px solid rgba(0,180,180,.3);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Main panel ── */
+.panel{
+  display:flex;flex-direction:column;overflow:hidden;
+  background:rgba(10,22,40,.5);
+}
+
+/* Risk hero */
+.risk-hero{
+  padding:28px 32px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(11,24,44,.7);
+}
+.rh-left{}
+.rh-tag{font-size:9px;letter-spacing:4px;color:var(--dim);margin-bottom:6px}
+.rh-value{
+  font-family:var(--hd);font-size:72px;font-weight:800;line-height:1;
+  color:var(--teal);text-shadow:0 0 40px currentColor;
+  transition:color .6s,text-shadow .6s;
+}
+.rh-value.high{color:var(--red);text-shadow:0 0 50px var(--red)}
+.rh-value.low {color:var(--green);text-shadow:0 0 40px var(--green)}
+.rh-sub{font-size:11px;color:var(--dim);margin-top:6px;letter-spacing:1px}
+.rh-right{text-align:right}
+
+/* Score gauge */
+.gauge-wrap{width:140px;height:140px;position:relative}
+.gauge-wrap svg{width:100%;height:100%}
+.gauge-center{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.gauge-score{font-family:var(--hd);font-size:32px;font-weight:800;color:var(--teal);transition:color .6s}
+.gauge-score.high{color:var(--red)}
+.gauge-score.low {color:var(--green)}
+.gauge-label{font-size:9px;letter-spacing:2px;color:var(--dim)}
+
+/* Pipeline steps */
+.pipeline{
+  flex:1;overflow-y:auto;padding:20px 24px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.step{
+  background:var(--navy3);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;transition:border-color .4s,box-shadow .4s;
+}
+.step.active{border-color:var(--teal);box-shadow:0 0 16px rgba(0,180,180,.1)}
+.step.done-ok {border-color:rgba(0,230,118,.4);box-shadow:0 0 10px rgba(0,230,118,.08)}
+.step.done-no {border-color:rgba(255,58,92,.3)}
+.step-header{
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+  cursor:pointer;user-select:none;
+}
+.step-num{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--dim);flex-shrink:0;transition:all .4s;
+}
+.step.active   .step-num{border-color:var(--teal);color:var(--teal);box-shadow:0 0 8px rgba(0,180,180,.3)}
+.step.done-ok  .step-num{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.1)}
+.step.done-no  .step-num{border-color:var(--red);color:var(--red)}
+.step-info{flex:1}
+.step-title{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text)}
+.step-sub  {font-size:10px;color:var(--dim);margin-top:2px}
+.step-result{text-align:right}
+.step-label{font-family:var(--hd);font-size:14px;font-weight:700;color:var(--text)}
+.step-label.positive{color:var(--teal2)}
+.step-label.negative{color:var(--dim)}
+.step-label.danger  {color:var(--red)}
+.step-label.safe    {color:var(--green)}
+.step-score{font-size:10px;color:var(--gold);margin-top:2px}
+.step-body{padding:0 16px 14px;display:none;border-top:1px solid var(--border)}
+.step.expanded .step-body{display:block}
+
+/* Prob bars */
+.pbar-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:10px}
+.pb-lbl{width:120px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-trk{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.pb-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.pb-pct{width:36px;text-align:right;color:var(--text)}
+
+/* Score breakdown */
+.score-breakdown{
+  padding:16px 24px;border-top:1px solid var(--border);
+  background:rgba(11,24,44,.8);
+  display:flex;align-items:center;gap:0;
+}
+.sb-item{
+  flex:1;text-align:center;padding:0 8px;
+  border-right:1px solid var(--border);
+}
+.sb-item:last-child{border-right:none}
+.sb-name{font-size:9px;letter-spacing:2px;color:var(--dim);margin-bottom:4px}
+.sb-val{font-family:var(--hd);font-size:20px;font-weight:700;color:var(--dim);transition:color .6s}
+.sb-val.lit{color:var(--gold)}
+.sb-max{font-size:9px;color:var(--dim)}
+
+/* Alert banner */
+.alert-banner{
+  padding:12px 24px;
+  display:flex;align-items:center;gap:12px;
+  font-size:11px;letter-spacing:1px;
+  display:none;
+}
+.alert-banner.high{background:rgba(255,58,92,.12);border-top:1px solid rgba(255,58,92,.3);color:var(--red)}
+.alert-banner.low {background:rgba(0,230,118,.08);border-top:1px solid rgba(0,230,118,.2);color:var(--green)}
+.alert-icon{font-size:18px}
+.alert-text{flex:1}
+.alert-tg{font-size:10px;color:var(--dim)}
+
+/* 3D radar canvas */
+#radar-canvas{width:100%;height:100%;display:block}
+.radar-overlay{position:absolute;inset:0;pointer-events:none}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="app">
+<header>
+  <div class="brand">
+    <div class="logo-ring">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal2)" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M7 14c.5-2 2-4 5-4s4.5 2 5 4" stroke-linecap="round"/>
+        <circle cx="12" cy="9" r="2" fill="var(--teal2)" stroke="none"/>
+        <path d="M4 17h1M19 17h1M2 12h1M21 12h1" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>MOTADAREK</h1>
+      <p>DETECT · ASSESS · ALERT · PROTECT</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <span class="status-text">5 MODELS READY</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────── -->
+<div class="sidebar">
+
+  <!-- Fall Audio -->
+  <div>
+    <div class="section-head">01 · Fall Audio</div>
+    <div class="input-card">
+      <div class="ic-header">
+        <span class="ic-label">
+          <span>💥</span> FALL DETECTOR + POSITION + SURFACE
+        </span>
+        <span class="ic-badge">3 MODELS</span>
+      </div>
+      <div class="ic-body">
+        <div class="dz" id="dz-fall">
+          <input type="file" id="fi-fall" accept=".wav,.mp3,.m4a,.flac,.ogg"/>
+          <div class="dz-icon">🎤</div>
+          <div class="dz-text">Drop fall audio file</div>
+          <div class="dz-hint">wav · mp3 · m4a · flac</div>
+          <div class="dz-fn" id="fn-fall"></div>
+        </div>
+        <div class="wv-wrap" id="wv-fall"><canvas id="cv-fall"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scream Audio -->
+  <div>
+    <div class="section-head">02 · Scream Audio</div>
+    <div class="input-card">
+      <div class="ic-header">
+        <span class="ic-label">
+          <span>🔊</span> SCREAM DETECTOR
+        </span>
+        <span class="ic-badge">OPTIONAL</span>
+      </div>
+      <div class="ic-body">
+        <div class="dz" id="dz-scream">
+          <input type="file" id="fi-scream" accept=".wav,.mp3,.m4a,.flac,.ogg"/>
+          <div class="dz-icon">🔊</div>
+          <div class="dz-text">Drop scream audio file</div>
+          <div class="dz-hint">wav · mp3 · m4a · flac</div>
+          <div class="dz-fn" id="fn-scream"></div>
+        </div>
+        <div class="wv-wrap" id="wv-scream"><canvas id="cv-scream"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Radar Input -->
+  <div>
+    <div class="section-head">03 · Radar Data</div>
+    <div class="input-card">
+      <div class="ic-header">
+        <span class="ic-label">
+          <span>📡</span> RADAR RECOVERY MODEL
+        </span>
+        <span class="ic-badge">ML · JOBLIB</span>
+      </div>
+      <div class="ic-body">
+        <div class="radar-section">
+          <div style="font-size:10px;color:var(--dim);margin-bottom:6px">Post-fall movement state:</div>
+          <div class="radar-toggle">
+            <button class="rtog selected" id="rt-inactive" onclick="selectRadar('not_recovered')">
+              🔴 Not recovered
+            </button>
+            <button class="rtog" id="rt-active" onclick="selectRadar('recovered')">
+              🟢 Recovered
+            </button>
+            <button class="rtog" id="rt-none" onclick="selectRadar('none')">
+              ⬜ No data
+            </button>
+          </div>
+          <div id="radar-json-wrap" class="radar-features" style="margin-top:8px">
+            <div style="font-size:9px;color:var(--dim);letter-spacing:1px">ADVANCED — JSON FEATURE VECTOR</div>
+            <textarea id="radar-json" placeholder='{"features":[0.12,0.34,...]}' 
+              style="width:100%;height:60px;background:var(--navy2);border:1px solid var(--border);
+                     border-radius:4px;padding:8px;color:var(--text);font-family:var(--mono);
+                     font-size:10px;resize:none;outline:none"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analyze -->
+  <button class="analyze-btn" id="analyze-btn" disabled onclick="analyze()">
+    <span id="btn-text">ANALYZE</span>
+  </button>
+
+</div>
+
+<!-- ── Main Panel ───────────────────────────────────────────────── -->
+<div class="panel">
+
+  <!-- Risk Hero -->
+  <div class="risk-hero">
+    <div class="rh-left">
+      <div class="rh-tag">· RISK ASSESSMENT</div>
+      <div class="rh-value" id="rh-value">—</div>
+      <div class="rh-sub" id="rh-sub">upload fall audio to begin analysis</div>
+    </div>
+    <div class="rh-right">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle id="gauge-arc" cx="60" cy="60" r="50" fill="none"
+            stroke="var(--teal)" stroke-width="8"
+            stroke-dasharray="314" stroke-dashoffset="314"
+            stroke-linecap="round"
+            transform="rotate(-90 60 60)"
+            style="transition:stroke-dashoffset 1s ease,stroke .6s"/>
+          <text x="60" y="68" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="JetBrains Mono">/ 11</text>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-score" id="gauge-score">—</div>
+          <div class="gauge-label">SCORE</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert Banner -->
+  <div class="alert-banner" id="alert-banner">
+    <span class="alert-icon" id="alert-icon"></span>
+    <span class="alert-text" id="alert-text"></span>
+    <span class="alert-tg" id="alert-tg"></span>
+  </div>
+
+  <!-- Pipeline steps -->
+  <div class="pipeline" id="pipeline">
+
+    <!-- Step 1: Fall Detector -->
+    <div class="step" id="step-fall">
+      <div class="step-header" onclick="toggleStep('fall')">
+        <div class="step-num">1</div>
+        <div class="step-info">
+          <div class="step-title">FALL DETECTOR · AST TRANSFORMER</div>
+          <div class="step-sub">SAFE + External dataset · Binary classification</div>
+        </div>
+        <div class="step-result">
+          <div class="step-label" id="sl-fall">WAITING</div>
+          <div class="step-score" id="ss-fall"></div>
+        </div>
+      </div>
+      <div class="step-body" id="sb-fall"></div>
+    </div>
+
+    <!-- Step 2: Position -->
+    <div class="step" id="step-pos">
+      <div class="step-header" onclick="toggleStep('pos')">
+        <div class="step-num">2</div>
+        <div class="step-info">
+          <div class="step-title">POSITION MODEL · AST TRANSFORMER</div>
+          <div class="step-sub">Pre-fall posture · Standing or Lying</div>
+        </div>
+        <div class="step-result">
+          <div class="step-label" id="sl-pos">—</div>
+          <div class="step-score" id="ss-pos"></div>
+        </div>
+      </div>
+      <div class="step-body" id="sb-pos"></div>
+    </div>
+
+    <!-- Step 3: Surface -->
+    <div class="step" id="step-surf">
+      <div class="step-header" onclick="toggleStep('surf')">
+        <div class="step-num">3</div>
+        <div class="step-info">
+          <div class="step-title">SURFACE MODEL · AST TRANSFORMER</div>
+          <div class="step-sub">Impact surface type · Concrete / Wood / Carpet</div>
+        </div>
+        <div class="step-result">
+          <div class="step-label" id="sl-surf">—</div>
+          <div class="step-score" id="ss-surf"></div>
+        </div>
+      </div>
+      <div class="step-body" id="sb-surf"></div>
+    </div>
+
+    <!-- Step 4: Scream -->
+    <div class="step" id="step-scream">
+      <div class="step-header" onclick="toggleStep('scream')">
+        <div class="step-num">4</div>
+        <div class="step-info">
+          <div class="step-title">SCREAM DETECTOR · AST TRANSFORMER</div>
+          <div class="step-sub">Nociceptive vocalization indicator</div>
+        </div>
+        <div class="step-result">
+          <div class="step-label" id="sl-scream">—</div>
+          <div class="step-score" id="ss-scream"></div>
+        </div>
+      </div>
+      <div class="step-body" id="sb-scream"></div>
+    </div>
+
+    <!-- Step 5: Radar -->
+    <div class="step" id="step-radar">
+      <div class="step-header" onclick="toggleStep('radar')">
+        <div class="step-num">5</div>
+        <div class="step-info">
+          <div class="step-title">RADAR RECOVERY MODEL · ML</div>
+          <div class="step-sub">Post-fall movement analysis · joblib classifier</div>
+        </div>
+        <div class="step-result">
+          <div class="step-label" id="sl-radar">—</div>
+          <div class="step-score" id="ss-radar"></div>
+        </div>
+      </div>
+      <div class="step-body" id="sb-radar"></div>
+    </div>
+
+  </div>
+
+  <!-- Score Breakdown -->
+  <div class="score-breakdown" id="score-breakdown">
+    <div class="sb-item">
+      <div class="sb-name">POSITION</div>
+      <div class="sb-val" id="sv-pos">—</div>
+      <div class="sb-max">/ 2</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-name">SURFACE</div>
+      <div class="sb-val" id="sv-surf">—</div>
+      <div class="sb-max">/ 3</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-name">SCREAM</div>
+      <div class="sb-val" id="sv-scream">—</div>
+      <div class="sb-max">/ 3</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-name">RADAR</div>
+      <div class="sb-val" id="sv-radar">—</div>
+      <div class="sb-max">/ 3</div>
+    </div>
+    <div class="sb-item" style="border-right:none">
+      <div class="sb-name">TOTAL</div>
+      <div class="sb-val" id="sv-total" style="font-size:26px">—</div>
+      <div class="sb-max">/ 11 · threshold ≥ 5</div>
+    </div>
+  </div>
+
+</div>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// BACKGROUND — animated particle field + grid
+// ═══════════════════════════════════════════════════════
+(function(){
+  const c=document.getElementById('bg-canvas');
+  c.width=window.innerWidth;c.height=window.innerHeight;
+  const x=c.getContext('2d');
+  window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight});
+
+  const pts=Array.from({length:60},()=>({
+    x:Math.random()*c.width, y:Math.random()*c.height,
+    vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+    r:Math.random()*1.5+.5,
+  }));
+
+  let ph=0;
+  function draw(){
+    x.clearRect(0,0,c.width,c.height);
+    // grid
+    x.strokeStyle='rgba(0,100,120,.08)';x.lineWidth=1;
+    for(let i=0;i<c.width;i+=40){x.beginPath();x.moveTo(i,0);x.lineTo(i,c.height);x.stroke()}
+    for(let j=0;j<c.height;j+=40){x.beginPath();x.moveTo(0,j);x.lineTo(c.width,j);x.stroke()}
+    // wave
+    x.beginPath();x.strokeStyle='rgba(0,180,180,.12)';x.lineWidth=1.5;
+    for(let i=0;i<=c.width;i++){
+      const y2=c.height*.7+30*Math.sin(i*.008+ph)+15*Math.sin(i*.015+ph*1.3);
+      i?x.lineTo(i,y2):x.moveTo(i,y2);
+    }
+    x.stroke();
+    // particles
+    pts.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>c.width)p.vx*=-1;
+      if(p.y<0||p.y>c.height)p.vy*=-1;
+      x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);
+      x.fillStyle='rgba(0,200,200,.3)';x.fill();
+    });
+    // connections
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+        if(d<100){
+          x.beginPath();x.strokeStyle=`rgba(0,180,180,${(1-d/100)*.08})`;
+          x.lineWidth=.5;x.moveTo(pts[i].x,pts[i].y);x.lineTo(pts[j].x,pts[j].y);x.stroke();
+        }
+      }
+    }
+    ph+=.006;requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ═══════════════════════════════════════════════════════
+// FILE HANDLING
+// ═══════════════════════════════════════════════════════
+let fileFall=null, fileScream=null;
+let radarState='not_recovered';
+
+function setupDZ(dzId,inputId,fnId,wvId,cvId,color,setter){
+  const dz=document.getElementById(dzId);
+  const fi=document.getElementById(inputId);
+  const fn=document.getElementById(fnId);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])set(e.dataTransfer.files[0])});
+  fi.addEventListener('change',()=>{if(fi.files[0])set(fi.files[0])});
+  function set(f){setter(f);fn.textContent='✓ '+f.name;dz.classList.add('done');drawWave(f,wvId,cvId,color);checkReady()}
+}
+
+function drawWave(file,wvId,cvId,color){
+  const wrap=document.getElementById(wvId);wrap.style.display='block';
+  const c=document.getElementById(cvId);c.width=wrap.offsetWidth;c.height=40;
+  const x=c.getContext('2d');
+  const r=new FileReader();
+  r.onload=async e=>{
+    try{
+      const ac=new AudioContext();const buf=await ac.decodeAudioData(e.target.result);
+      const d=buf.getChannelData(0);const step=Math.ceil(d.length/c.width);
+      x.clearRect(0,0,c.width,40);x.strokeStyle=color;x.lineWidth=1;x.beginPath();
+      for(let i=0;i<c.width;i++){
+        let mx=0;for(let j=0;j<step;j++)mx=Math.max(mx,Math.abs(d[i*step+j]||0));
+        x.moveTo(i,20-mx*18);x.lineTo(i,20+mx*18);
+      }x.stroke();
+    }catch(_){}
+  };r.readAsArrayBuffer(file);
+}
+
+setupDZ('dz-fall','fi-fall','fn-fall','wv-fall','cv-fall','rgba(0,212,212,0.7)',f=>{fileFall=f});
+setupDZ('dz-scream','fi-scream','fn-scream','wv-scream','cv-scream','rgba(255,58,92,0.7)',f=>{fileScream=f});
+
+function checkReady(){
+  document.getElementById('analyze-btn').disabled=!fileFall;
+}
+
+// ═══════════════════════════════════════════════════════
+// RADAR TOGGLE
+// ═══════════════════════════════════════════════════════
+function selectRadar(val){
+  radarState=val;
+  ['inactive','active','none'].forEach(id=>document.getElementById('rt-'+id).classList.remove('selected'));
+  const map={'not_recovered':'inactive','recovered':'active','none':'none'};
+  document.getElementById('rt-'+(map[val]||val)).classList.add('selected');
+  document.getElementById('radar-json-wrap').classList.toggle('show', val==='json');
+}
+
+// ═══════════════════════════════════════════════════════
+// STEP TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleStep(id){
+  document.getElementById('step-'+id).classList.toggle('expanded');
+}
+
+// ═══════════════════════════════════════════════════════
+// PROB BARS
+// ═══════════════════════════════════════════════════════
+const BAR_COLORS={
+  'Fall':'#ff3a5c','No Fall':'#00e676','Fall ':'#ff3a5c',
+  'Standing':'#f0b429','Lying':'#00b4b4',
+  'Scream':'#ff3a5c','Non-Scream':'#00e676',
+  'Concrete':'#ff6b35','Carpet over Concrete':'#ff6b35',
+  'Wood':'#f0b429','Carpet over Wood':'#00b4b4',
+};
+function probBars(probs){
+  if(!probs||!Object.keys(probs).length)return '';
+  return Object.entries(probs).map(([cls,pct])=>`
+    <div class="pbar-row">
+      <span class="pb-lbl">${cls}</span>
+      <div class="pb-trk"><div class="pb-fill" style="width:${pct}%;background:${BAR_COLORS[cls]||'#00b4b4'}"></div></div>
+      <span class="pb-pct">${pct}%</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// ANIMATE SCORE COUNTER
+// ═══════════════════════════════════════════════════════
+function animateScore(target,isHigh){
+  const el=document.getElementById('gauge-score');
+  const arc=document.getElementById('gauge-arc');
+  const max=11;let current=0;
+  const interval=setInterval(()=>{
+    current++;
+    el.textContent=current;
+    el.className='gauge-score'+(isHigh?' high':' low');
+    const offset=314-(314*(current/max));
+    arc.style.strokeDashoffset=offset;
+    arc.style.stroke=isHigh?'var(--red)':'var(--green)';
+    if(current>=target)clearInterval(interval);
+  },80);
+}
+
+// ═══════════════════════════════════════════════════════
+// MAIN ANALYZE
+// ═══════════════════════════════════════════════════════
+async function analyze(){
+  if(!fileFall)return;
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true;
+  document.getElementById('btn-text').innerHTML='<span class="analyzing"><span class="spin"></span> ANALYZING...</span>';
+
+  // Reset
+  ['fall','pos','surf','scream','radar'].forEach(id=>{
+    const s=document.getElementById('step-'+id);
+    s.className='step';
+    document.getElementById('sl-'+id).textContent='—';
+    document.getElementById('ss-'+id).textContent='';
+    document.getElementById('sb-'+id).innerHTML='';
+  });
+  document.getElementById('rh-value').textContent='—';
+  document.getElementById('rh-value').className='rh-value';
+  document.getElementById('rh-sub').textContent='analyzing...';
+  document.getElementById('gauge-score').textContent='—';
+  document.getElementById('gauge-arc').style.strokeDashoffset='314';
+  document.getElementById('gauge-arc').style.stroke='var(--teal)';
+  document.getElementById('alert-banner').style.display='none';
+  ['pos','surf','scream','radar','total'].forEach(k=>{ const el=document.getElementById('sv-'+k); el.textContent='—'; el.className='sb-val'; });
+
+  const fd=new FormData();
+  fd.append('fall_audio',fileFall);
+  if(fileScream)fd.append('scream_audio',fileScream);
+
+  // Radar data
+  const jsonTxt=document.getElementById('radar-json').value.trim();
+  if(radarState==='json'&&jsonTxt){
+    fd.append('radar_data',jsonTxt);
+  } else if(radarState!=='none'){
+    fd.append('radar_data',JSON.stringify({manual:radarState}));
+  }
+
+  try{
+    // Animate step 1
+    document.getElementById('step-fall').className='step active';
+    document.getElementById('sl-fall').textContent='RUNNING...';
+
+    const res=await fetch('/predict',{method:'POST',body:fd});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||'Server error');
+
+    // ── Render Step 1: Fall ──────────────────────────────────────────
+    const isfall=d.fall_detected;
+    const fallEl=document.getElementById('step-fall');
+    fallEl.className='step '+(isfall?'done-ok expanded':'done-no expanded');
+    const slfall=document.getElementById('sl-fall');
+    slfall.textContent=d.fall.label.toUpperCase();
+    slfall.className='step-label '+(isfall?'danger':'safe');
+    document.getElementById('sb-fall').innerHTML=
+      `<div style="padding-top:10px;font-size:10px;color:var(--dim)">Confidence: ${d.fall.confidence}%</div>`+
+      probBars(d.fall.probs);
+
+    if(!isfall){
+      document.getElementById('rh-value').textContent='NO FALL';
+      document.getElementById('rh-value').className='rh-value low';
+      document.getElementById('rh-sub').textContent='fall detector returned negative — no further analysis';
+      return;
+    }
+
+    // ── Render Step 2: Position ──────────────────────────────────────
+    await delay(300);
+    document.getElementById('step-pos').className='step active';
+    await delay(200);
+    const p=d.position;
+    document.getElementById('step-pos').className='step done-ok expanded';
+    const slpos=document.getElementById('sl-pos');
+    slpos.textContent=p.label.toUpperCase();
+    slpos.className='step-label '+(p.label==='Standing'?'danger':'positive');
+    document.getElementById('ss-pos').textContent=`+${d.scores.position} pts`;
+    document.getElementById('sb-pos').innerHTML=
+      `<div style="padding-top:10px;font-size:10px;color:var(--dim)">Confidence: ${p.confidence}%</div>`+
+      probBars(p.probs);
+    setScore('sv-pos',d.scores.position);
+
+    // ── Render Step 3: Surface ───────────────────────────────────────
+    await delay(300);
+    document.getElementById('step-surf').className='step active';
+    await delay(200);
+    const s=d.surface;
+    document.getElementById('step-surf').className='step done-ok expanded';
+    const slsurf=document.getElementById('sl-surf');
+    slsurf.textContent=s.label.toUpperCase();
+    slsurf.className='step-label '+(d.scores.surface===3?'danger':'positive');
+    document.getElementById('ss-surf').textContent=`+${d.scores.surface} pts`;
+    document.getElementById('sb-surf').innerHTML=
+      `<div style="padding-top:10px;font-size:10px;color:var(--dim)">Confidence: ${s.confidence}%</div>`+
+      probBars(s.probs);
+    setScore('sv-surf',d.scores.surface);
+
+    // ── Render Step 4: Scream ────────────────────────────────────────
+    await delay(300);
+    document.getElementById('step-scream').className='step active';
+    await delay(200);
+    const sc=d.scream;
+    const isScream=sc.label==='Scream';
+    document.getElementById('step-scream').className='step '+(isScream?'done-no':'done-ok')+' expanded';
+    const slscream=document.getElementById('sl-scream');
+    slscream.textContent=sc.label.toUpperCase();
+    slscream.className='step-label '+(isScream?'danger':'safe');
+    document.getElementById('ss-scream').textContent=`+${d.scores.scream} pts`;
+    document.getElementById('sb-scream').innerHTML=
+      `<div style="padding-top:10px;font-size:10px;color:var(--dim)">${sc.note||''} ${sc.confidence?'Confidence: '+sc.confidence+'%':''}</div>`+
+      probBars(sc.probs);
+    setScore('sv-scream',d.scores.scream);
+
+    // ── Render Step 5: Radar ─────────────────────────────────────────
+    await delay(300);
+    document.getElementById('step-radar').className='step active';
+    await delay(200);
+    const rdr=d.radar;
+    const notRecovered=rdr.state==='not_recovered';
+    document.getElementById('step-radar').className='step '+(notRecovered?'done-no':'done-ok')+' expanded';
+    const slradar=document.getElementById('sl-radar');
+    slradar.textContent=notRecovered?'NOT RECOVERED':'RECOVERED';
+    slradar.className='step-label '+(notRecovered?'danger':'safe');
+    document.getElementById('ss-radar').textContent=`+${d.scores.radar} pts`;
+    document.getElementById('sb-radar').innerHTML=
+      `<div style="padding-top:10px;font-size:10px;color:var(--dim)">${rdr.note||''}${rdr.confidence?' · Confidence: '+rdr.confidence+'%':''}</div>`;
+    setScore('sv-radar',d.scores.radar);
+
+    // ── Final score & risk ───────────────────────────────────────────
+    await delay(400);
+    const total=d.total_score;
+    const isHigh=d.risk==='HIGH';
+    setScore('sv-total',total,isHigh);
+
+    const rhv=document.getElementById('rh-value');
+    rhv.textContent=isHigh?'HIGH RISK':'LOW RISK';
+    rhv.className='rh-value '+(isHigh?'high':'low');
+    document.getElementById('rh-sub').textContent=
+      isHigh?`Score ${total}/11 — threshold exceeded (≥5) — alert triggered`
+            :`Score ${total}/11 — below threshold (<5) — logged for monitoring`;
+
+    animateScore(total,isHigh);
+
+    // ── Alert banner ─────────────────────────────────────────────────
+    const ab=document.getElementById('alert-banner');
+    ab.style.display='flex';
+    ab.className='alert-banner '+(isHigh?'high':'low');
+    document.getElementById('alert-icon').textContent=isHigh?'🚨':'✅';
+    document.getElementById('alert-text').textContent=
+      isHigh?'HIGH RISK — Caregiver alert dispatched'
+            :'LOW RISK — Event logged for monitoring';
+    document.getElementById('alert-tg').textContent=
+      isHigh?(d.alert_sent?'📲 Telegram notification sent':'📲 Telegram: not configured')
+            :'📋 Logged';
+
+  }catch(e){
+    document.getElementById('rh-value').textContent='ERROR';
+    document.getElementById('rh-sub').textContent=e.message;
+    console.error(e);
+  }finally{
+    btn.disabled=false;
+    document.getElementById('btn-text').textContent='ANALYZE';
+  }
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+function setScore(id,val,isHigh=null){
+  const el=document.getElementById(id);
+  el.textContent='+'+val;
+  el.className='sb-val lit';
+  if(isHigh===true) el.style.color='var(--red)';
+  else if(isHigh===false) el.style.color='var(--green)';
+}
+</script>
+</body>
+</html>
