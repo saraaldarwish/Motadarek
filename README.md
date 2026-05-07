@@ -12,6 +12,12 @@ MOTADAREK is a multimodal AI-powered fall detection and severity assessment syst
 
 The system integrates multiple machine learning models into one inference pipeline using FastAPI and HuggingFace Spaces.
 
+## Repository and Deployment
+
+GitHub contains the project code, notebooks, documentation, and pipeline logic.
+
+HuggingFace Spaces contains the live deployed application, including the model files needed for online inference.
+
 ---
 
 ## Features
