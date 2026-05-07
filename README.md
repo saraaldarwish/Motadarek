@@ -4,6 +4,11 @@
 🚀 **Live Demo:**  
 https://huggingface.co/spaces/SarahSulaiman/Motadarek
 
+## Repository and Deployment
+
+GitHub contains the project code and notebooks.
+
+HuggingFace Spaces contains the live deployed application, including the model files needed for online inference.
 ---
 
 ## Overview
@@ -11,12 +16,6 @@ https://huggingface.co/spaces/SarahSulaiman/Motadarek
 MOTADAREK is a multimodal AI-powered fall detection and severity assessment system. It combines audio analysis, radar-based recovery detection, and contextual classification models to analyze fall events and assess potential severity.
 
 The system integrates multiple machine learning models into one inference pipeline using FastAPI and HuggingFace Spaces.
-
-## Repository and Deployment
-
-GitHub contains the project code and notebooks.
-
-HuggingFace Spaces contains the live deployed application, including the model files needed for online inference.
 
 ---
 
