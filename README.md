@@ -1,6 +1,6 @@
 ---
 title: Motadarek Fall Detection
-emoji: 🚨
+alert: 🚨
 colorFrom: indigo
 colorTo: blue
 sdk: docker
@@ -31,6 +31,5 @@ Multi-model fall detection and severity assessment system.
 | Radar: not recovered | +3 |
 
 ## Environment Variables (Secrets)
-Set these in HF Space Settings → Variables and Secrets:
 - `TELEGRAM_BOT_TOKEN` — your Telegram bot token
 - `TELEGRAM_CHAT_ID` — caregiver's Telegram chat ID
