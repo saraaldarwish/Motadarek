@@ -9,6 +9,7 @@ https://huggingface.co/spaces/SarahSulaiman/Motadarek
 GitHub contains the project code and notebooks.
 
 HuggingFace Spaces contains the live deployed application, including the model files needed for online inference.
+
 ---
 
 ## Overview
