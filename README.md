@@ -4,7 +4,7 @@
 🚀 **Live Demo:**  
 https://huggingface.co/spaces/SarahSulaiman/Motadarek
 
-## Repository and Deployment
+## Repository and deployment 
 
 GitHub contains the project code and notebooks.
 
